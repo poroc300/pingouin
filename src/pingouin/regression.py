@@ -1436,7 +1436,7 @@ def vif(data):
 
     1. Non-numeric columns are removed (DataFrame), or the array is cast to
        ``float64`` (ndarray).
-    2. Rows containing missing (NaN) or infinite values are removed, and a
+    2. Rows containing missing (``NaN``) or infinite values are removed, and a
        warning reports the percentage of rows dropped.
     3. Constant columns (zero variance) trigger a warning and their VIF is
        reported as ``NaN``.
