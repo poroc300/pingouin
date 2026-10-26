@@ -1371,7 +1371,7 @@ def mediation_analysis(
 # TODO Add References section to docstring
 @_register_dataframe_method
 def vif(data):
-    """Variance inflation factor (VIF) of each predictor.
+    """Calculation of variance inflation factors (VIF) for each predictor.
 
     VIF quantifies the degree of multicollinearity among the predictor
     variables, i.e. how strongly each one is linearly explained by the others.
@@ -1393,7 +1393,7 @@ def vif(data):
 
         Constant (zero-variance) columns are kept in the output with a VIF
         of ``NaN``. If ``data`` is a :py:class:`numpy.ndarray`, the predictors
-        are named ``X1``, ``X2``, ... in order of appearance (column order).
+        are named ``x1``, ``x2``, ... in order of appearance (column order).
 
     See also
     --------
@@ -1409,11 +1409,13 @@ def vif(data):
 
     where :math:`R_j^2` is the coefficient of determination obtained by
     regressing variable :math:`j` on all the remaining variables. A VIF of 1
-    indicates no collinearity. Common rules of thumb consider values above 5
-    as a sign of problematic multicollinearity.
+    indicates no collinearity. Common rules of thumb flag values above 5 or 10,
+    but these cutoffs are arbitrary: a large VIF is not automatically a
+    problem, as the standard error also depends on sample size and residual
+    variance [1]_.
 
-    Rather than fitting one regression per variable, the VIFs are computed
-    as the diagonal elements of the inverse of the Pearson correlation
+    This function, rather than fitting one regression per variable, computes the
+    VIFs as the diagonal elements of the inverse of the Pearson correlation
     matrix :math:`\\mathbf{R}`:
 
     .. math:: \\text{VIF}_j = \\left(\\mathbf{R}^{-1}\\right)_{jj}
@@ -1442,6 +1444,11 @@ def vif(data):
     Results were compared against the function variance_inflation_factor
     from library statsmodels.
 
+    References
+    ----------
+    .. [1] O'Brien, R. M. (2007). A caution regarding rules of thumb for variance
+           inflation factors. Quality & Quantity, 41(5), 673-690.
+
     Examples
     --------
     >>> import numpy as np
@@ -1459,13 +1466,13 @@ def vif(data):
     2        x3  1.00
 
     Non-numeric columns (here ``group``) are ignored. A numpy array can also
-    be used, in which case the variables are named ``X1``, ``X2``, ...
+    be used, in which case the variables are named ``x1``, ``x2``, ...
 
     >>> pg.vif(df[["x1", "x2", "x3"]].to_numpy()).round(2)
       variables   VIF
-    0        X1  7.42
-    1        X2  7.41
-    2        X3  1.00
+    0        x1  7.42
+    1        x2  7.41
+    2        x3  1.00
 
     Rows with missing values are dropped, with a warning.
 
@@ -1475,7 +1482,7 @@ def vif(data):
     and/or infinite values.
     """
     if isinstance(data, pd.DataFrame):
-        # Get only numeric columns and convert to numpy array.
+        # Get only numeric/boolean columns and convert to numpy array.
         numeric_data = data.select_dtypes(include=["bool", "integer", "floating"]).copy()
         output_cols = numeric_data.columns
         X = numeric_data.to_numpy(dtype=np.float64, na_value=np.nan)
@@ -1496,7 +1503,7 @@ def vif(data):
                 "could not be coerced to float64."
             ) from err
 
-        # Create list of column names for output (X1, X2...).
+        # Create list of column names for output (x1, x2...).
         output_cols = [f"x{n}" for n in range(1, X.shape[1] + 1)]
 
     # Invalid input type.
@@ -1545,9 +1552,10 @@ def vif(data):
     # Calculate Pearson correlation matrix column-wise.
     corr = np.corrcoef(X, rowvar=False)
 
-    # Full numerical rank (SVD-based tolerance), R is invertible, so VIF_j = (R^-1)_jj,
-    # using one inversion instead of p regressions. Ill-conditioned but full-rank
-    # matrices lose some precision, but the VIFs are then huge anyway, so the conclusion is unchanged.
+    # With full numerical rank (SVD-based tolerance), R is invertible, so
+    # VIF_j = (R^-1)_jj. This needs one inversion instead of p regressions.
+    # Ill-conditioned but full-rank matrices lose some precision, but their
+    # VIFs are huge anyway, so the conclusion is unchanged.
     if np.linalg.matrix_rank(corr) == corr.shape[0]:
         vif_values = np.diag(np.linalg.inv(corr))
     # Correlation matrix not invertible, fall back to one OLS regression per variable.
