@@ -1388,7 +1388,7 @@ def vif(data):
         Long-format DataFrame with one row per input variable:
 
         * ``'variables'``: predictor names
-        * ``'VIF'``: estimate VIF values
+        * ``'VIF'``: estimated VIF values
 
         Constant (zero-variance) columns are kept in the output with a VIF
         of ``NaN``. If ``data`` is a :py:class:`numpy.ndarray`, the predictors
@@ -1422,10 +1422,9 @@ def vif(data):
     This is mathematically equivalent to the regression-based definition
     but faster, since it requires a single matrix inversion instead of
     :math:`p` regressions. If :math:`\\mathbf{R}` is numerically singular
-    (perfect multicollinearity, or more variables than observations), the
-    function falls back to one least-squares regression per variable, and
-    variables that are perfectly predicted by the others are assigned a VIF
-    of ``inf``.
+    (perfect multicollinearity), the function falls back to one least-squares
+    regression per variable, and variables that are perfectly predicted by the
+    others are assigned a VIF of ``inf``.
 
     Because :math:`R_j^2` is invariant to linear rescaling of the variables,
     the VIFs do not depend on the units of the data, and no standardization
@@ -1482,7 +1481,7 @@ def vif(data):
     """
     if isinstance(data, pd.DataFrame):
         # Get only numeric/boolean columns and convert to numpy array.
-        numeric_data = data.select_dtypes(include=["bool", "integer", "floating"]).copy()
+        numeric_data = data.select_dtypes(include=["bool", "integer", "floating"])
         output_cols = numeric_data.columns
         X = numeric_data.to_numpy(dtype=np.float64, na_value=np.nan)
 
@@ -1495,7 +1494,7 @@ def vif(data):
         if data.dtype.kind in "cMm":  # complex, datetime, timedelta
             raise ValueError(f"Input ndarray of dtype {data.dtype} is not supported.")
         try:
-            X = data.astype("float64").copy()
+            X = data.astype("float64")
         except (ValueError, TypeError) as err:
             raise ValueError(
                 f"Input ndarray of dtype {data.dtype} is not numeric and "
@@ -1513,7 +1512,7 @@ def vif(data):
 
     # No rows are available for the VIF calculation.
     if X.size == 0:
-        raise ValueError("`data` contains no rows of numeric data.")
+        raise ValueError("`data` does not contain any numeric data for VIF calculation.")
 
     # At least two variables are needed to compute a VIF.
     if X.shape[1] < 2:
@@ -1532,21 +1531,21 @@ def vif(data):
         )
         X = X[mask_finite]
 
-    # VIF are only calculated if there are more observations than variables.
-    if X.shape[0] <= X.shape[1]:
-        raise ValueError("`data` must have more rows than numeric variables to calculate VIF.")
-
     # Discard constant-value (zero variance) columns.
     mask_non_constant = np.ptp(X, axis=0) > 0
     if not mask_non_constant.all():
+        X = X[:, mask_non_constant]
+        if X.shape[1] < 2:
+            raise ValueError("Fewer than two non-constant variables remain.")
         warnings.warn(
             "Columns with zero variance found. VIF cannot be estimated for them and is set to NaN.",
             UserWarning,
             stacklevel=2,
         )
-        X = X[:, mask_non_constant]
-        if X.shape[1] < 2:
-            raise ValueError("Fewer than two non-constant variables remain.")
+
+    # VIF are only calculated if there are more observations than variables.
+    if X.shape[0] <= X.shape[1]:
+        raise ValueError("`data` must have more rows than numeric variables to calculate VIF.")
 
     # Calculate Pearson correlation matrix column-wise.
     corr = np.corrcoef(X, rowvar=False)
