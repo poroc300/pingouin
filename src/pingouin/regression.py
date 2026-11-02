@@ -1368,7 +1368,6 @@ def mediation_analysis(
         return _postprocess_dataframe(stats)
 
 
-# TODO Add References section to docstring
 @_register_dataframe_method
 def vif(data):
     """Calculation of variance inflation factors (VIF) for each predictor.
